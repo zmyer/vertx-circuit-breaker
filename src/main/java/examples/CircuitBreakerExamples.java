@@ -28,9 +28,6 @@ import io.vertx.ext.web.Router;
  */
 public class CircuitBreakerExamples {
 
-  //TODO Change method name
-  //TODO update documentation
-
   public void example1(Vertx vertx) {
     CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
         new CircuitBreakerOptions()
@@ -39,6 +36,10 @@ public class CircuitBreakerExamples {
             .setFallbackOnFailure(true) // do we call the fallback on failure
             .setResetTimeout(10000) // time spent in open state before attempting to re-try
     );
+
+    // ---
+    // Store the circuit breaker in a field and access it as follows
+    // ---
 
     breaker.execute(future -> {
       // some code executing with the breaker
@@ -54,6 +55,10 @@ public class CircuitBreakerExamples {
     CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
         new CircuitBreakerOptions().setMaxFailures(5).setTimeout(2000)
     );
+
+    // ---
+    // Store the circuit breaker in a field and access it as follows
+    // ---
 
     breaker.<String>execute(future -> {
       vertx.createHttpClient().getNow(8080, "localhost", "/", response -> {
@@ -76,6 +81,10 @@ public class CircuitBreakerExamples {
     CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
         new CircuitBreakerOptions().setMaxFailures(5).setTimeout(2000)
     );
+
+    // ---
+    // Store the circuit breaker in a field and access it as follows
+    // ---
 
     breaker.executeWithFallback(
         future -> {
@@ -190,5 +199,27 @@ public class CircuitBreakerExamples {
       .requestHandler(router::accept)
       .listen(8080);
 
+  }
+
+  public void example8(Vertx vertx) {
+    CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
+      new CircuitBreakerOptions().setMaxFailures(5).setMaxRetries(5).setTimeout(2000)
+    ).openHandler(v -> {
+      System.out.println("Circuit opened");
+    }).closeHandler(v -> {
+      System.out.println("Circuit closed");
+    }).retryPolicy(retryCount -> retryCount * 100L);
+
+    breaker.execute(
+      future -> {
+        vertx.createHttpClient().getNow(8080, "localhost", "/", response -> {
+          if (response.statusCode() != 200) {
+            future.fail("HTTP error");
+          } else {
+            // Do something with the response
+            future.complete();
+          }
+        });
+      });
   }
 }

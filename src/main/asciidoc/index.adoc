@@ -42,6 +42,9 @@ To use the circuit breaker you need to:
 1. Create a circuit breaker, with the configuration you want (timeout, number of failure before opening the circuit)
 2. Execute some code using the breaker
 
+**Important**: Don't recreate a circuit breaker on every call. A circuit breaker is a staful entity. It is recommended
+to store the circuit breaker instance in a field.
+
 Here is an example:
 
 [source,$lang]
@@ -82,14 +85,28 @@ The fallback can also be set on the {@link io.vertx.circuitbreaker.CircuitBreake
 {@link examples.CircuitBreakerExamples#example4(io.vertx.core.Vertx)}
 ----
 
+== Retries
+
 You can also specify how often the circuit breaker should try your code before failing with
 {@link io.vertx.circuitbreaker.CircuitBreakerOptions#setMaxRetries(int)}.
 If you set this to something higher than 0 your code gets executed several times before finally failing
 in the last execution. If the code succeeded in one of the retries your handler gets notified and any
 retries left are skipped. Retries are only supported when the circuit is closed.
 
-Notice that is you set `maxRetries` to 2 for instance, your operation may be called 3 times: the initial attempt
+Notice that if you set `maxRetries` to 2 for instance, your operation may be called 3 times: the initial attempt
 and 2 retries.
+
+By default the timeout between retries is set to 0 which means that retries will be executed one after another without
+any delay. This, however, will result in increased load on the called service and may delay it's recovery.
+In order to mitigate this problem it is recommended to execute retries with delays. {@link io.vertx.circuitbreaker.CircuitBreaker#retryPolicy(java.util.function.Function)}
+method can be used to specify retry policy. Retry policy is a function which receives retry count as single argument
+and returns timeout in milliseconds before retry is executed and allows to implement a more complex policy, e.g.
+exponential backoff with jitter. Below is an example of retry timeout which grows linearly with each retry count:
+
+[source,$lang]
+----
+{@link examples.CircuitBreakerExamples#example8(io.vertx.core.Vertx)}
+----
 
 == Callbacks
 
@@ -122,10 +139,10 @@ Each event contains a Json Object with:
 When the circuit is "open", calls to the circuit breaker fail immediately, without any attempt to execute the real
 operation. After a suitable amount of time (configured from
 {@link io.vertx.circuitbreaker.CircuitBreakerOptions#setResetTimeout(long)}, the circuit breaker decides that the
-operation has a chance of succeeding, so it goes into the {@code half-open} state. In this state, the next call to the
+operation has a chance of succeeding, so it goes into the `half-open` state. In this state, the next call to the
 circuit breaker is allowed to execute the dangerous operation. Should the call succeed, the circuit breaker resets
-and returns to the {@code closed} state, ready for more routine operation. If this trial call fails, however, the circuit
-breaker returns to the {@code open} state until another timeout elapses.
+and returns to the `closed` state, ready for more routine operation. If this trial call fails, however, the circuit
+breaker returns to the `open` state until another timeout elapses.
 
 == Reported exceptions
 
